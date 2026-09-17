@@ -1,74 +1,99 @@
 ---
 name: jev-review
-description: Use Jev Review frequently throughout nontrivial coding work to score focused implementation slices, compare quality changes, and improve justified weaknesses. Trigger after each coherent change, after review-driven fixes, and before final handoff; skip only duplicate, formatting-only, or context-free reviews.
+description: Run Jev Review as a repeated scalar feedback loop during nontrivial coding work. Establish a score baseline after a coherent implementation, diagnose weak dimensions yourself, improve the code, validate it, and rescore with the previous evaluation until important metrics improve or no further justified change remains.
 ---
 
 # Jev Review
 
-Use `jev_review` as a lightweight, repeatable senior-engineering review loop. The primary coding agent owns the implementation, validation, and final judgment; Jev Review evaluates the supplied change but never edits files.
+Use `jev_review` as an iterative engineering-quality signal, not as a narrative code reviewer. The coding agent owns diagnosis, implementation, testing, and final judgment. Jev evaluates the supplied state and returns structured scores; it never edits files.
 
-## Review cadence
+## The operating model
 
-For nontrivial tasks, prefer several focused reviews throughout the work over one large review at the end:
+The loop is:
 
-- Call after each coherent implementation slice that is substantial enough to judge, such as completing a behavior, module, API boundary, migration step, or test strategy.
-- Call when new control flow, state handling, dependencies, public contracts, or security-sensitive behavior appear.
-- Call again after applying justified feedback, passing the prior result as `previousEvaluation` so Jev can identify improvements and regressions.
-- Before final handoff, make sure a recent review covers the final implementation.
+```text
+implement → validate → score → inspect → form a hypothesis → improve → validate → rescore
+```
 
-An interim review does not need to wait for the full test suite. Run fast, relevant checks when practical and include their status in `repositoryContext`; run the repository's normal validation before the final review. Do not repeat an identical call, review formatting-only noise, or call without a coherent implementation state. Frequent focused reviews are useful; empty reviews are not.
+A first evaluation is a baseline, not the end of the review. For a nontrivial task, continue the loop after meaningful changes and use score movement to test whether the implementation actually improved.
 
-## Workflow
+Jev does not generate a prose explanation of why a score is low. Treat these as the primary signals:
 
-1. Understand the user's actual requirements and constraints.
-2. Inspect the repository, its conventions, and the affected behavior.
-3. Implement a coherent slice of the requested change.
-4. Run fast, relevant tests, type checks, linters, or other validation when practical.
-5. Call `jev_review` with only the context needed to assess the current slice.
-6. Examine low-confidence results, weak dimensions, priority issues, and any regressions.
-7. Decide which feedback is supported by the code and the user's task. Treat the evaluation as evidence, not an instruction to optimize every number.
-8. Improve the implementation where the feedback identifies real value, prioritizing correctness, cognitive complexity, changeability, coupling, modularity, abstraction quality, tests, and security.
-9. Repeat the implement, validate, and review loop for the next coherent slice.
-10. After review-driven or other material changes, call `jev_review` again and pass the previous structured evaluation as `previousEvaluation`.
-11. Run the repository's normal validation before final handoff, then review the final state if the latest evaluation no longer covers it.
-12. Stop when important risks are addressed and further changes would add little real value.
+- Per-metric score
+- Confidence
+- Change from the previous evaluation
+- Meaningful improvements and regressions
 
-## Choosing context
+Any summaries, priority reasons, or issue labels in the tool response are predefined rubric/category hints. They are not a root-cause analysis from Jev and may not identify the exact problematic code. Inspect the implementation and requirements yourself to determine why a dimension is weak.
 
-Prefer a focused call shaped like:
+## Required review loop
+
+For every nontrivial coding task:
+
+1. Understand the user's requirements, invariants, and repository conventions.
+2. Implement a coherent slice and run the relevant tests or checks.
+3. Call `jev_review` to establish or refresh the baseline.
+4. Identify the weakest important metrics, prioritizing correctness, cognitive complexity, changeability, coupling, modularity, abstraction quality, tests, reliability, and security.
+5. Inspect the code and form a concrete hypothesis for what is lowering one or more scores.
+6. Make the smallest justified improvement that addresses that hypothesis. Do not ask Jev to write or explain the fix.
+7. Run relevant validation again.
+8. Call `jev_review` again with the updated implementation and the prior response in `previousEvaluation`.
+9. Check whether targeted scores improved and whether any other dimension regressed.
+10. Repeat when an important weak metric remains and another evidence-based improvement is available.
+
+Do not stop merely because `jev_review` was called once. When a targeted score does not improve, reconsider the diagnosis instead of making random cosmetic changes. Try a different justified improvement and rescore, or determine from the code, confidence, and requirements that the metric should not drive another change.
+
+## When to call
+
+Call `jev_review`:
+
+- After the first coherent implementation exists
+- After each meaningful implementation slice
+- After each review-driven improvement
+- After changes to control flow, state, dependencies, public contracts, tests, or security-sensitive behavior
+- Before final handoff when the previous evaluation no longer describes the current code
+
+Interim reviews may precede the full test suite, but the final evaluation should follow the project's normal validation. Do not call on an unchanged implementation, formatting-only noise, or context too thin to judge.
+
+## Keep comparisons useful
+
+Use `task` and the current `diff` in most calls. Add full files only when surrounding behavior is necessary. Use `repositoryContext` for relevant architecture, conventions, invariants, and test results.
+
+On a follow-up call:
+
+- Pass the previous tool response unchanged as `previousEvaluation`.
+- Send the current implementation state, not the obsolete pre-fix diff.
+- Keep the task and context scope reasonably consistent so score deltas remain comparable.
+- Include newly relevant tests, callers, or contracts when they affect the judgment.
+
+Example:
 
 ```json
 {
-  "task": "The user's requested behavior and relevant acceptance constraints",
-  "diff": "The implementation diff",
+  "task": "The requested behavior and acceptance constraints",
+  "diff": "The current implementation diff after the latest changes",
   "files": [
     {
       "path": "src/example.ts",
-      "content": "Only when surrounding code is needed to understand the diff"
+      "content": "Only include surrounding code needed to judge the change"
     }
   ],
-  "repositoryContext": "Relevant architecture, conventions, test results, or invariants",
+  "repositoryContext": "Relevant conventions, invariants, and validation results",
   "previousEvaluation": {}
 }
 ```
 
-If Jev reports that its input limit was exceeded, reduce unrelated file content or split the implementation into coherent review slices. Do not truncate code blindly when doing so would remove the contracts, callers, or tests needed to judge the change correctly.
+If Jev reports that its input limit was exceeded, remove unrelated content or split the implementation into coherent review slices. Do not blindly truncate contracts, callers, or tests needed to judge the change.
 
-Use `task` and `diff` in most reviews. Add complete files only when the diff lacks necessary surrounding behavior. Use `repositoryContext` for concise facts the evaluator cannot infer, such as an established pattern or validation result.
+Never send secrets, credentials, private keys, environment files, generated output, vendored code, or unrelated repository content.
 
-Do not send the whole repository by default. Exclude unrelated files, generated output, vendored code, secrets, credentials, private keys, environment files, and noisy lockfile changes unless they are directly relevant to the review.
+## Stopping conditions
 
-## Interpreting results
+Stop the loop when:
 
-- Correctness and the user's requirements outrank every score.
-- A low-confidence score is a prompt to inspect context, not a reason to rewrite code.
-- Conditional metrics marked `applicable: false` require no action.
-- Use `priorities` to find the most consequential weak dimensions, then inspect the actual code before changing it.
-- When comparing evaluations, investigate meaningful regressions and weak metrics that remain unresolved. Do not chase tiny score changes.
-- Continue to rely on tests, type checks, linters, security tools, and human judgment. Jev Review complements them; it does not replace them.
+- The implementation satisfies the user's requirements and normal validation passes.
+- Important targeted metrics improved and no meaningful regression was introduced.
+- Remaining weak or low-confidence metrics have no concrete, justified improvement available.
+- Further score-seeking changes would add scope, complexity, coupling, or behavioral risk.
 
-## Do not game scores
-
-A higher score never justifies unnecessary abstraction, speculative architecture, scope expansion, breaking existing behavior, rewriting sound code, unconventional architecture without evidence, meaningless tests, unnecessary comments, or splitting cohesive code merely to shrink files.
-
-Do not assume short functions, small files, single-purpose classes, zero duplication, more abstractions, more tests, or more comments are inherently better. Evaluate the consequences in this repository and for this task.
+Scores are evidence, not objectives to game. Never improve a score by adding speculative architecture, unnecessary abstraction, meaningless tests or comments, mechanical file splitting, scope expansion, or behavior changes the user did not request. Correctness and the user's actual requirements always come first.

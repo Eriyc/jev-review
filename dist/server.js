@@ -36552,15 +36552,15 @@ var evaluationSchema = external_exports.object({
 
 // src/evaluation/input.ts
 var reviewFileSchema = external_exports.object({
-  path: external_exports.string().min(1),
-  content: external_exports.string()
+  path: external_exports.string().min(1).describe("Repository-relative path for this relevant file."),
+  content: external_exports.string().describe("Current file content needed to understand or evaluate the change.")
 }).strict();
 var reviewInputSchema = external_exports.object({
-  task: external_exports.string().min(1).optional(),
-  diff: external_exports.string().min(1).optional(),
-  files: external_exports.array(reviewFileSchema).optional(),
-  repositoryContext: external_exports.string().min(1).optional(),
-  previousEvaluation: evaluationSchema.optional()
+  task: external_exports.string().min(1).describe("The user's requested behavior, acceptance constraints, and relevant invariants.").optional(),
+  diff: external_exports.string().min(1).describe("The current implementation diff, updated after the most recent improvement.").optional(),
+  files: external_exports.array(reviewFileSchema).describe("Only current files whose surrounding content is required to judge the implementation.").optional(),
+  repositoryContext: external_exports.string().min(1).describe("Relevant architecture, conventions, test results, or constraints not evident from the diff.").optional(),
+  previousEvaluation: evaluationSchema.describe("The prior jev_review response, passed unchanged to calculate score deltas locally.").optional()
 }).strict().superRefine((input2, context) => {
   const hasContext = Boolean(
     input2.task || input2.diff || input2.repositoryContext || input2.files?.length
@@ -37164,24 +37164,26 @@ async function reviewWithJev(rawInput, dependencies = {}) {
 
 // src/mcp/server.ts
 var SERVER_INSTRUCTIONS = [
-  "Use jev_review frequently throughout nontrivial coding work: after each coherent implementation slice, after review-driven changes, and before final handoff.",
-  "Prefer several focused review loops over one large end-of-task review, and pass previousEvaluation on follow-up calls.",
-  "Interim reviews may run before the full test suite; the final review should follow normal project checks.",
-  "Do not repeat identical calls or review formatting-only or context-free changes.",
-  "Send only the task, diff, files, and repository context needed to assess the change.",
-  "Treat its dimensions as review evidence, not targets to game; correctness and user requirements come first.",
-  "The coding agent remains responsible for deciding which feedback is justified and for modifying code."
+  "Jev Review is a repeated scalar feedback loop, not a narrative reviewer.",
+  "For every nontrivial coding task, call jev_review after the first coherent implementation to establish a baseline, then call it again after each meaningful improvement.",
+  "Jev supplies metric scores, confidence, and score movement; it does not provide a prose root-cause analysis.",
+  "The coding agent must inspect the requirements and code, diagnose why an important dimension is weak, make the smallest justified improvement, run relevant validation, and rescore.",
+  "On follow-up calls, send the current implementation and pass the prior structured response unchanged as previousEvaluation so improvements and regressions are visible.",
+  "A single baseline call is not completion: continue while important weak metrics remain and another evidence-based improvement is available.",
+  "If a targeted score does not improve, reconsider the diagnosis rather than making random cosmetic changes.",
+  "Do not repeat identical calls, review formatting-only changes, or game scores through scope expansion, speculative architecture, meaningless tests, unnecessary comments, or mechanical file splitting.",
+  "Correctness, user requirements, and normal project validation always outrank score improvement."
 ].join(" ");
 function createMcpServer(review = reviewWithJev) {
   const server = new McpServer(
-    { name: "jev-review", version: "0.1.0" },
+    { name: "jev-review", version: "0.1.1" },
     { instructions: SERVER_INSTRUCTIONS }
   );
   server.registerTool(
     "jev_review",
     {
       title: "Jev software-quality review",
-      description: "Evaluate a focused implementation slice with Jev across independent engineering dimensions. Use repeatedly during nontrivial work and pass previousEvaluation after material changes. Provide only relevant task, diff, file, and repository context; do not send the whole repository by default.",
+      description: "Run a scalar software-quality feedback loop over a focused implementation. For nontrivial work, call once to establish a baseline, then inspect the code yourself, improve weak important dimensions, validate, and call again with the prior result in previousEvaluation. Jev returns scores, confidence, and deltas\u2014not a prose explanation of root causes. Do not stop after the baseline when another justified improvement is available. Send the current task, diff, relevant files, and repository context; never send the whole repository by default.",
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,

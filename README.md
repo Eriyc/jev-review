@@ -13,7 +13,7 @@
 
 </div>
 
-Jev Review runs as a local MCP server and gives Claude Code, Codex, Cursor, and OpenCode structured feedback while they work. Your coding agent remains responsible for changing the code; Jev acts as a fast senior-engineering reviewer across correctness, complexity, changeability, modularity, tests, security, and other independent quality dimensions.
+Jev Review runs as a local MCP server and gives Claude Code, Codex, Cursor, and OpenCode structured quality scores while they work. Your coding agent remains responsible for diagnosing weaknesses and changing the code; Jev supplies a fast scalar signal across correctness, complexity, changeability, modularity, tests, security, and other independent quality dimensions.
 
 > [!IMPORTANT]
 > **Your API key stays on your machine.** Jev Review has no hosted backend, database, telemetry service, or author-operated proxy. The only remote request is sent directly to the configured Jev API.
@@ -72,9 +72,9 @@ flowchart LR
     F -. review again .-> B
 ```
 
-Jev Review is intended for frequent, focused checkpoints: after a coherent implementation slice, after addressing review feedback, and before final handoff. It does not modify files, blindly optimize scores, or replace the project's normal tests and checks.
+Jev Review is intended for frequent, focused checkpoints: after a coherent implementation slice, after a score-driven improvement, and before final handoff. The first call establishes a baseline. The agent then inspects its own implementation, forms a hypothesis about weak dimensions, improves the code, validates it, and rescores.
 
-Jev returns typed Score, Choice, and Noul decisions rather than a free-form review essay. Jev Review validates and converts those decisions into concise metric scores, confidence levels, prioritized weaknesses, and comparisons with a previous evaluation.
+Jev returns typed Score, Choice, and Noul decisions rather than a free-form review essay. It does not generate a prose explanation of why a score is low. Jev Review validates and converts those decisions into metric scores, confidence levels, coarse rubric hints, and comparisons with a previous evaluation. The coding agent—not Jev—must determine the actual cause and appropriate code change.
 
 There is deliberately no synthetic “82/100” overall score. Dimension changes such as `Readability 6.3 → 8.1` and `Security 8.2 → 8.2` are more useful than a blended percentage.
 
@@ -220,7 +220,7 @@ The response contains:
 
 - An independent 1–10 score and 0–1 confidence for each applicable metric
 - `{ "applicable": false }` for dimensions unsupported by the supplied context
-- Prioritized weaknesses and concise improvement suggestions
+- Prioritized weak dimensions and coarse predefined rubric hints—not generated root-cause explanations
 - Per-metric deltas, improvements, regressions, and unresolved weaknesses when `previousEvaluation` is supplied
 
 ## Quality dimensions
@@ -254,15 +254,16 @@ The evaluator judges consequences in context. It does not assume short functions
 
 ## Evaluation workflow
 
-The included `jev-review` skill teaches agents to:
+The included `jev-review` skill teaches agents to treat Jev as a repeated scalar feedback loop:
 
 1. Understand the task and inspect the repository.
 2. Implement a coherent change and run relevant checks.
-3. Call `jev_review` with focused context.
-4. Inspect weak metrics, confidence, priorities, and regressions.
-5. Apply only feedback justified by the code and requirements.
-6. Validate and optionally review again after material changes.
-7. Stop when additional changes would provide little real value.
+3. Call `jev_review` with focused context to establish a baseline.
+4. Inspect the code themselves and form a hypothesis for weak important scores.
+5. Make the smallest justified improvement and validate it.
+6. Rescore with `previousEvaluation`, then inspect improvements and regressions.
+7. Repeat while another evidence-based improvement remains.
+8. Stop when requirements and checks pass and further score-seeking would add little real value.
 
 Correctness and the user's requirements always outrank score improvement. A higher score never justifies speculative architecture, unnecessary abstraction, scope expansion, breaking behavior, meaningless tests, or needless rewrites.
 

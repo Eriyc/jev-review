@@ -1,6 +1,6 @@
 {
   "name": "jev-review",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Local-first software-quality evaluation for AI coding agents, powered by Jev.",
   "type": "module",

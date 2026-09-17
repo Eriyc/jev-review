@@ -1,7 +1,7 @@
 {
   "name": "jev-review",
-  "version": "0.1.0",
-  "description": "Continuous, local-first software-quality evaluation for AI coding agents, powered by Jev.",
+  "version": "0.1.1",
+  "description": "An iterative, local-first software-quality score loop for AI coding agents, powered by Jev.",
   "author": {
     "name": "Jev Review contributors"
   },
