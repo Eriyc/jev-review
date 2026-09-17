@@ -21,9 +21,11 @@ Jev Review runs as a local MCP server and gives Claude Code, Codex, Cursor, and 
 ## Demo
 
 <p align="center">
-  <a href="public/jev-review-demo.mp4">
-    <img alt="Watch the 40-second Jev Review demo" src="https://img.shields.io/badge/%E2%96%B6_Watch_the_demo-40_seconds-111827?style=for-the-badge">
-  </a>
+  
+
+https://github.com/user-attachments/assets/0ff9f873-0652-4826-af3d-6bb4f42c70b1
+
+
 </p>
 
 ## At a glance
