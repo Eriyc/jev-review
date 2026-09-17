@@ -1,0 +1,16 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "jev-review",
+  "version": "0.1.0",
+  "description": "Continuous, local-first software-quality evaluation for AI coding agents, powered by Jev.",
+  "author": {
+    "name": "Jev Review contributors"
+  },
+  "license": "MIT",
+  "keywords": [
+    "code-review",
+    "mcp",
+    "software-quality",
+    "jev"
+  ]
+}

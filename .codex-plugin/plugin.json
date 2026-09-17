@@ -1,0 +1,32 @@
+{
+  "name": "jev-review",
+  "version": "0.1.0+codex.20260917051255",
+  "description": "Continuous, local-first software-quality evaluation for AI coding agents, powered by Jev.",
+  "author": {
+    "name": "Jev Review contributors"
+  },
+  "license": "MIT",
+  "keywords": [
+    "code-review",
+    "mcp",
+    "software-quality",
+    "jev"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Jev Review",
+    "shortDescription": "Evaluate code quality with Jev",
+    "longDescription": "Review meaningful code checkpoints across independent engineering dimensions with a local MCP server and the user's Jev API key.",
+    "developerName": "Jev Review contributors",
+    "category": "Developer Tools",
+    "capabilities": [
+      "MCP tools",
+      "Agent Skill",
+      "Code review"
+    ],
+    "defaultPrompt": [
+      "Review my current implementation with Jev Review.",
+      "Evaluate this diff and help me improve its weakest dimensions."
+    ]
+  }
+}
