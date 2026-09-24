@@ -40,7 +40,7 @@ https://github.com/user-attachments/assets/0ff9f873-0652-4826-af3d-6bb4f42c70b1
 | **Distribution** | This GitHub repository—no npm publication |
 | **Runtime** | Local Bun process over MCP stdio |
 | **Remote access** | TypeSafe or OpenRouter Decisions API using your provider key |
-| **MCP tools** | One focused tool: `jev_review` |
+| **MCP tools** | `jev_review` for iterative quality scores; `jev_signal` for a one-off file judgment |
 | **Code changes** | Always performed by the primary coding agent |
 
 ## Quick start
@@ -185,9 +185,9 @@ Point OpenCode at the same Bun bundle in `~/.config/opencode/opencode.json`:
 ```
 
 For direct TypeSafe, remove `JEV_PROVIDER` and pass `JEV_API_KEY` instead. Run `opencode mcp list` to verify the connection.
-## MCP tool
+## MCP tools
 
-Jev Review intentionally starts with one tool: `jev_review`.
+Jev Review exposes two tools. `jev_review` remains the iterative software-quality scorer:
 
 ```ts
 {
@@ -212,6 +212,22 @@ The response contains:
 - `{ "applicable": false }` for dimensions unsupported by the supplied context
 - Prioritized weak dimensions and coarse predefined rubric hints—not generated root-cause explanations
 - Per-metric deltas, improvements, regressions, and unresolved weaknesses when `previousEvaluation` is supplied
+
+### One-off file signal
+
+Use `jev_signal` for a specific yes/no judgment about a file. The agent supplies the file content; the MCP server does not read repository files. Send a complete file when its whole structure matters and it fits the Jev context window. Include relevant rules or neighboring context when the file alone cannot support the judgment.
+
+```json
+{
+  "file": { "path": "src/service.ts", "content": "<complete file content>" },
+  "question": "Does this file combine responsibilities that should change independently?",
+  "yesMeans": "The file combines distinct responsibilities with a useful split boundary.",
+  "noMeans": "The responsibilities are cohesive; splitting would add fragmentation.",
+  "context": "The router owns HTTP handling; repository rules favor domain logic in services."
+}
+```
+
+The response has `path`, `model`, `evidenceProbability`, and `probabilityYes`. `probabilityYes` is Jev's probability of yes, **not** a confidence score or an automatic pass/fail decision. When Jev finds the supplied evidence insufficient (`evidenceProbability < 0.5`), `probabilityYes` is `null`; provide more context before acting. For file-by-file use, the agent calls `jev_signal` once per relevant file. Exclude secrets, generated files, and vendored code. Enforce mechanical repository rules with tests or linters; use Jev for semantic judgments.
 
 ## Quality dimensions
 
@@ -308,7 +324,7 @@ claude plugin validate . --strict
 
 The local MCP process reads `JEV_API_KEY` for direct TypeSafe or `OPENROUTER_API_KEY` for OpenRouter and uses it only in the TLS Authorization header sent to the selected provider. Jev Review never stores or logs the key.
 
-Only the `task`, `diff`, `files`, and `repositoryContext` explicitly supplied to `jev_review` are sent to Jev. `previousEvaluation` is compared locally and is not included in the current code context. No repository files are discovered or uploaded automatically.
+Only context explicitly supplied to `jev_review` or `jev_signal` is sent to Jev. `previousEvaluation` is compared locally and is not included in the current code context. No repository files are discovered or uploaded automatically.
 
 Review context leaves your machine for TypeSafe's Jev API or OpenRouter's Decisions API, depending on configuration. Do not supply secrets or unrelated proprietary content, and review the selected provider's privacy terms. Jev Review complements rather than replaces dedicated security tooling.
 

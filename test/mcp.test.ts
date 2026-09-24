@@ -20,18 +20,27 @@ describe("MCP server", () => {
     await client.connect(transport);
     try {
       const listed = await client.listTools();
-      assert.deepEqual(listed.tools.map((tool) => tool.name), ["jev_review"]);
+      assert.deepEqual(listed.tools.map((tool) => tool.name), ["jev_review", "jev_signal"]);
       const result = await client.callTool({ name: "jev_review", arguments: { task: "Check environment" } });
       assert.equal(result.isError, true);
       assert.match(JSON.stringify(result.content), /OPENROUTER_API_KEY is not set/);
+      const signal = await client.callTool({ name: "jev_signal", arguments: {
+        file: { path: "src/example.ts", content: "export const answer = 42;" },
+        question: "Does this file mix unrelated responsibilities?",
+        yesMeans: "It mixes unrelated responsibilities.",
+        noMeans: "Its responsibilities are cohesive."
+      } });
+      assert.equal(signal.isError, true);
+      assert.match(JSON.stringify(signal.content), /OPENROUTER_API_KEY is not set/);
     } finally {
       await client.close();
     }
   });
 
-  it("exposes one machine-readable jev_review tool", async () => {
+  it("exposes machine-readable review and signal tools", async () => {
     const expected = fakeEvaluation();
-    const server = createMcpServer(async () => expected);
+    const expectedSignal = { path: "src/example.ts", model: "jev-latest", evidenceProbability: 0.95, probabilityYes: 0.2 };
+    const server = createMcpServer(async () => expected, async () => expectedSignal);
     const client = new Client({ name: "jev-review-test", version: "1.0.0" });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 
@@ -40,7 +49,7 @@ describe("MCP server", () => {
 
     try {
       const listed = await client.listTools();
-      assert.deepEqual(listed.tools.map((tool) => tool.name), ["jev_review"]);
+      assert.deepEqual(listed.tools.map((tool) => tool.name), ["jev_review", "jev_signal"]);
 
       const result = await client.callTool({
         name: "jev_review",
@@ -48,6 +57,13 @@ describe("MCP server", () => {
       });
       assert.equal(result.isError, undefined);
       assert.deepEqual(result.structuredContent, expected);
+      const signal = await client.callTool({ name: "jev_signal", arguments: {
+        file: { path: "src/example.ts", content: "export const answer = 42;" },
+        question: "Does this file mix unrelated responsibilities?",
+        yesMeans: "It mixes unrelated responsibilities.",
+        noMeans: "Its responsibilities are cohesive."
+      } });
+      assert.deepEqual(signal.structuredContent, expectedSignal);
     } finally {
       await client.close();
       await server.close();

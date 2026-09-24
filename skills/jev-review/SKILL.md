@@ -7,6 +7,8 @@ description: Run Jev Review as a repeated scalar feedback loop during nontrivial
 
 Use `jev_review` as an iterative engineering-quality signal, not as a narrative code reviewer. The coding agent owns diagnosis, implementation, testing, and final judgment. Jev evaluates the supplied state and returns structured scores; it never edits files.
 
+For a one-off question about a file, use `jev_signal` instead. Supply the file content, a specific yes/no question, clear meanings for yes and no, and relevant rules or neighboring context. The tool returns a probability, not an automatic pass/fail decision. If `probabilityYes` is null, add the missing context before relying on the signal. Do not send secrets, generated code, or vendored files.
+
 ## The operating model
 
 The loop is:

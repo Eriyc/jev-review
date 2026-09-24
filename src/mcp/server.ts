@@ -5,6 +5,7 @@ import { z } from "zod";
 import { reviewInputSchema } from "../evaluation/input.js";
 import { reviewWithJev } from "../evaluation/review.js";
 import { evaluationSchema, type Evaluation } from "../evaluation/types.js";
+import { signalInputSchema, signalOutputSchema, signalWithJev, type SignalInput, type SignalOutput } from "../signal/signal.js";
 
 const SERVER_INSTRUCTIONS = [
   "Jev Review is a repeated scalar feedback loop, not a narrative reviewer.",
@@ -15,14 +16,16 @@ const SERVER_INSTRUCTIONS = [
   "A single baseline call is not completion: continue while important weak metrics remain and another evidence-based improvement is available.",
   "If a targeted score does not improve, reconsider the diagnosis rather than making random cosmetic changes.",
   "Do not repeat identical calls, review formatting-only changes, or game scores through scope expansion, speculative architecture, meaningless tests, unnecessary comments, or mechanical file splitting.",
-  "Correctness, user requirements, and normal project validation always outrank score improvement."
+  "Correctness, user requirements, and normal project validation always outrank score improvement.",
+  "For a one-off yes/no judgment about a supplied file, call jev_signal. Treat its probability as a signal, and provide relevant rules and neighboring context when needed."
 ].join(" ");
 
 export type ReviewHandler = (input: z.infer<typeof reviewInputSchema>) => Promise<Evaluation>;
+export type SignalHandler = (input: SignalInput) => Promise<SignalOutput>;
 
-export function createMcpServer(review: ReviewHandler = reviewWithJev): McpServer {
+export function createMcpServer(review: ReviewHandler = reviewWithJev, signal: SignalHandler = signalWithJev): McpServer {
   const server = new McpServer(
-    { name: "jev-review", version: "0.1.1" },
+    { name: "jev-review", version: "0.2.0" },
     { instructions: SERVER_INSTRUCTIONS }
   );
 
@@ -53,6 +56,26 @@ export function createMcpServer(review: ReviewHandler = reviewWithJev): McpServe
           isError: true,
           content: [{ type: "text", text: message }]
         };
+      }
+    }
+  );
+
+  server.registerTool(
+    "jev_signal",
+    {
+      title: "Jev file judgment signal",
+      description: "Make one specific yes/no judgment about a supplied file. Returns Jev's probability of yes when the supplied file and context are sufficient; otherwise returns null and an evidence probability. Send the complete file when practical and relevant rules or neighboring context when needed. The server does not read repository files itself.",
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+      inputSchema: signalInputSchema,
+      outputSchema: signalOutputSchema
+    },
+    async (input) => {
+      try {
+        const result = await signal(input);
+        return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Jev Signal failed unexpectedly.";
+        return { isError: true, content: [{ type: "text", text: message }] };
       }
     }
   );
