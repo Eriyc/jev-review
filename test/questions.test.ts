@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "bun:test";
 
 import { metricDefinitions } from "../src/evaluation/metrics.js";
 import { buildJevQuestions, questionId, SCORE_LEVELS } from "../src/evaluation/questions.js";

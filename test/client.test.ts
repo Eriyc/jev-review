@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "bun:test";
 
 import { JevApiError, JevClient, JEV_API_ENDPOINT, JEV_MODEL } from "../src/jev/client.js";
+import { getJevProviderConfig } from "../src/config/environment.js";
+import { OPENROUTER_API_ENDPOINT, OPENROUTER_MODEL } from "../src/jev/provider.js";
 
 const validResponse = {
   model: JEV_MODEL,
@@ -10,6 +12,63 @@ const validResponse = {
 };
 
 describe("Jev client", () => {
+  it("defaults existing JEV_API_KEY users to TypeSafe", () => {
+    assert.deepEqual(getJevProviderConfig({ JEV_API_KEY: " direct " }), {
+      provider: "typesafe", apiKey: "direct"
+    });
+  });
+
+  it("selects OpenRouter's Decisions API, key, and default Jev alias", async () => {
+    const config = getJevProviderConfig({ JEV_PROVIDER: "openrouter", OPENROUTER_API_KEY: " router ", JEV_API_KEY: "direct" });
+    let url = "";
+    let authorization = "";
+    let model = "";
+    const fakeFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      url = String(input);
+      authorization = new Headers(init?.headers).get("authorization") ?? "";
+      model = (JSON.parse(String(init?.body)) as { model: string }).model;
+      return Response.json({ ...validResponse, model: "typesafe/jev-1.13", id: "request-id", provider: "TypeSafe", usage: { ...validResponse.usage, cost: 0.01 } });
+    };
+    const response = await new JevClient({ ...config, fetchImplementation: fakeFetch }).evaluate("state", {});
+    assert.equal(url, OPENROUTER_API_ENDPOINT);
+    assert.equal(authorization, "Bearer router");
+    assert.equal(model, OPENROUTER_MODEL);
+    assert.equal(response.provider, "TypeSafe");
+  });
+
+  it("allows a pinned OpenRouter Jev model", async () => {
+    let model = "";
+    const fakeFetch = async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      model = (JSON.parse(String(init?.body)) as { model: string }).model;
+      return Response.json(validResponse);
+    };
+    const config = getJevProviderConfig({ JEV_PROVIDER: "openrouter", OPENROUTER_API_KEY: "router", JEV_MODEL: "typesafe/jev-1.13" });
+    await new JevClient({ ...config, fetchImplementation: fakeFetch }).evaluate("state", {});
+    assert.equal(model, "typesafe/jev-1.13");
+  });
+
+  it("reports provider-specific missing and rejected keys without echoing them", async () => {
+    assert.throws(() => getJevProviderConfig({ JEV_PROVIDER: "openrouter" }), /OPENROUTER_API_KEY/);
+    assert.throws(() => getJevProviderConfig({ JEV_PROVIDER: "unknown", JEV_API_KEY: "secret" }), /JEV_PROVIDER/);
+    const client = new JevClient({ provider: "openrouter", apiKey: "test-secret", fetchImplementation: async () => Response.json({ error: { code: "invalid_api_key", message: "bad key" } }, { status: 401 }) });
+    await assert.rejects(client.evaluate("state", {}), (error: unknown) => error instanceof JevApiError && error.status === 401 && error.message.includes("OPENROUTER_API_KEY") && !error.message.includes("test-secret"));
+  });
+
+  it("explains OpenRouter limits and malformed successful responses", async () => {
+    const limit = new JevClient({ provider: "openrouter", apiKey: "test-secret", fetchImplementation: async () => Response.json({ error: { code: "context_length_exceeded" } }, { status: 422 }) });
+    await assert.rejects(limit.evaluate("state", {}), /input limit/);
+    const malformed = new JevClient({ provider: "openrouter", apiKey: "test-secret", fetchImplementation: async () => Response.json({ answers: {} }) });
+    await assert.rejects(malformed.evaluate("state", {}), /OpenRouter returned a response/);
+    const invalidJson = new JevClient({ provider: "openrouter", apiKey: "test-secret", fetchImplementation: async () => new Response("not-json", { status: 200 }) });
+    await assert.rejects(invalidJson.evaluate("state", {}), /OpenRouter returned malformed JSON/);
+  });
+
+  it("aborts a stalled OpenRouter fetch", async () => {
+    const fakeFetch = async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
+      new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true }));
+    const client = new JevClient({ provider: "openrouter", apiKey: "test-secret", fetchImplementation: fakeFetch, timeoutMilliseconds: 5 });
+    await assert.rejects(client.evaluate("state", {}), /OpenRouter did not respond within 5ms/);
+  });
   it("sends the key only in the direct Jev authorization header", async () => {
     let observedUrl = "";
     let observedAuthorization = "";
