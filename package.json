@@ -11,7 +11,7 @@
     "build": "bun build ./src/server.ts --target=bun --outdir=dist --minify",
     "check": "tsc --noEmit",
     "test": "bun test",
-    "validate": "bun run check && bun test && bun run build"
+    "validate": "bun run check && bun run build && bun test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

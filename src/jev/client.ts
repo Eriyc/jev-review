@@ -1,14 +1,13 @@
 import { jevResponseSchema, type JevResponse } from "./schema.js";
 import type { JevQuestions } from "../evaluation/questions.js";
+import { providerEndpoint, providerKeyName, providerModel, type JevProviderConfig } from "./provider.js";
 
-export const JEV_API_ENDPOINT = "https://api.typesafe.ai/v1/systemone";
-export const JEV_MODEL = "jev-latest";
+export { JEV_API_ENDPOINT, JEV_MODEL } from "./provider.js";
 
 type FetchImplementation = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 type SleepImplementation = (milliseconds: number) => Promise<void>;
 
-export type JevClientOptions = {
-  apiKey: string;
+export type JevClientOptions = Partial<Pick<JevProviderConfig, "provider">> & Omit<JevProviderConfig, "provider"> & {
   fetchImplementation?: FetchImplementation;
   sleep?: SleepImplementation;
   timeoutMilliseconds?: number;
@@ -27,6 +26,7 @@ export class JevApiError extends Error {
 
 export class JevClient {
   readonly #apiKey: string;
+  readonly #config: JevProviderConfig;
   readonly #fetch: FetchImplementation;
   readonly #sleep: SleepImplementation;
   readonly #timeoutMilliseconds: number;
@@ -34,7 +34,8 @@ export class JevClient {
 
   constructor(options: JevClientOptions) {
     const apiKey = options.apiKey.trim();
-    if (!apiKey) throw new JevApiError("JEV_API_KEY is not set. Export it before starting your coding agent.");
+    this.#config = { provider: options.provider ?? "typesafe", apiKey, ...(options.model ? { model: options.model } : {}) };
+    if (!apiKey) throw new JevApiError(`${providerKeyName(this.#config)} is not set. Export it before starting your coding agent.`);
 
     this.#apiKey = apiKey;
     this.#fetch = options.fetchImplementation ?? fetch;
@@ -49,21 +50,26 @@ export class JevClient {
       const timeout = setTimeout(() => controller.abort(), this.#timeoutMilliseconds);
 
       try {
-        const response = await this.#fetch(JEV_API_ENDPOINT, {
+        const response = await this.#fetch(providerEndpoint(this.#config), {
           method: "POST",
           headers: {
             Authorization: `Bearer ${this.#apiKey}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ state, model: JEV_MODEL, questions }),
+          body: JSON.stringify({ state, model: providerModel(this.#config), questions }),
           signal: controller.signal
         });
 
         if (response.ok) {
-          const rawResponse: unknown = await response.json();
+          let rawResponse: unknown;
+          try {
+            rawResponse = await response.json();
+          } catch {
+            throw new JevApiError(`${providerName(this.#config)} returned malformed JSON.`);
+          }
           const parsed = jevResponseSchema.safeParse(rawResponse);
           if (!parsed.success) {
-            throw new JevApiError("Jev returned a response that did not match its documented schema.");
+            throw new JevApiError(`${providerName(this.#config)} returned a response that did not match Jev's documented schema.`);
           }
           return parsed.data;
         }
@@ -73,13 +79,13 @@ export class JevClient {
           continue;
         }
 
-        throw await apiStatusError(response);
+        throw await apiStatusError(response, this.#config);
       } catch (error) {
         if (error instanceof JevApiError) throw error;
         if (isAbortError(error)) {
-          throw new JevApiError(`Jev did not respond within ${this.#timeoutMilliseconds}ms.`);
+          throw new JevApiError(`${providerName(this.#config)} did not respond within ${this.#timeoutMilliseconds}ms.`);
         }
-        throw new JevApiError("Could not reach the Jev API. Check network access and try again.");
+        throw new JevApiError(`Could not reach ${providerName(this.#config)}. Check network access and try again.`);
       } finally {
         clearTimeout(timeout);
       }
@@ -93,36 +99,47 @@ function isRetryable(status: number): boolean {
   return status === 429 || status === 529 || status >= 500;
 }
 
-async function apiStatusError(response: Response): Promise<JevApiError> {
+function providerName(config: JevProviderConfig): string {
+  return config.provider === "openrouter" ? "OpenRouter" : "Jev";
+}
+
+async function apiStatusError(response: Response, config: JevProviderConfig): Promise<JevApiError> {
   const status = response.status;
   const errorType = await readErrorType(response);
+  const name = providerName(config);
 
-  if (status === 400 && errorType === "max_tokens_exceeded") {
+  if ((status === 400 || status === 413 || status === 422) &&
+      (errorType === "max_tokens_exceeded" || errorType === "context_length_exceeded" || status === 413)) {
     return new JevApiError(
       "Jev's input limit was exceeded. Send a smaller, focused code context or split the change across multiple review calls.",
       status
     );
   }
   if (status === 401) {
-    return new JevApiError("Jev rejected JEV_API_KEY. Check that the key is current and available to the MCP process.", status);
+    return new JevApiError(`${name} rejected ${providerKeyName(config)}. Check that the key is current and available to the MCP process.`, status);
   }
   if (status === 422) {
-    return new JevApiError("Jev rejected the supplied evaluation context or questions.", status);
+    return new JevApiError(`${name} rejected the supplied evaluation context or questions.`, status);
   }
   if (status === 429) {
-    return new JevApiError("Jev rate-limited the request after retries. Try again shortly.", status);
+    return new JevApiError(`${name} rate-limited the request after retries. Try again shortly.`, status);
   }
   if (status === 529) {
-    return new JevApiError("Jev remained overloaded after retries. Try again shortly.", status);
+    return new JevApiError(`${name} remained overloaded after retries. Try again shortly.`, status);
   }
-  return new JevApiError(`Jev API request failed with HTTP ${status}.`, status);
+  if (status === 402) return new JevApiError(`${name} requires available API credits.`, status);
+  if (status === 403) return new JevApiError(`${name} denied access to the requested Jev model.`, status);
+  if (status === 408 || status === 524) return new JevApiError(`${name} request timed out (HTTP ${status}).`, status);
+  return new JevApiError(`${name} API request failed with HTTP ${status}.`, status);
 }
 
 async function readErrorType(response: Response): Promise<string | undefined> {
   try {
     const body: unknown = await response.json();
-    if (!isRecord(body) || !isRecord(body.detail)) return undefined;
-    return typeof body.detail.error_type === "string" ? body.detail.error_type : undefined;
+    if (!isRecord(body)) return undefined;
+    if (isRecord(body.detail) && typeof body.detail.error_type === "string") return body.detail.error_type;
+    if (isRecord(body.error) && typeof body.error.code === "string") return body.error.code;
+    return undefined;
   } catch {
     return undefined;
   }
