@@ -15,6 +15,9 @@
 
 Jev Review runs as a local MCP server and gives Claude Code, Codex, Cursor, and OpenCode structured quality scores while they work. Your coding agent remains responsible for diagnosing weaknesses and changing the code; Jev supplies a fast scalar signal across correctness, complexity, changeability, modularity, tests, security, and other independent quality dimensions.
 
+> [!NOTE]
+> This is a fork of [NiazMorshed2007/jev-review](https://github.com/NiazMorshed2007/jev-review). It adds OpenRouter as an alternative Jev provider and runs the MCP server and development workflow with Bun. Direct TypeSafe access remains the default.
+
 > [!IMPORTANT]
 > **Your API key stays on your machine.** Jev Review has no hosted backend, database, telemetry service, or author-operated proxy. The only remote request is sent directly to the configured Jev API.
 
@@ -48,7 +51,15 @@ Requirements:
 - A Jev API key from the [TypeSafe console](https://console.typesafe.ai/) or an [OpenRouter API key](https://openrouter.ai/keys)
 - Claude Code, Codex, Cursor, or OpenCode
 
-Clone, install, and build with Bun:
+For Codex, the shortest install is the [Agent Plugins CLI](https://www.npmjs.com/package/plugins), run with Bun:
+
+```bash
+bun x --bun plugins add Eriyc/jev-review --target codex
+```
+
+Choose the user scope when prompted. Bun and a provider key are still required. The installer uses the committed server bundle, so no build is needed. Set `JEV_PROVIDER=openrouter` and `OPENROUTER_API_KEY` in the MCP environment as shown under [Codex setup](#codex). The same command supports `--target claude-code` or `--target cursor`.
+
+To install manually or develop the fork, clone, install dependencies, and build with Bun:
 
 ```bash
 git clone https://github.com/Eriyc/jev-review.git
