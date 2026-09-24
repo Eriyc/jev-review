@@ -66,7 +66,7 @@ Codex may not forward your shell's API key to a plugin MCP server. Invoke a Jev 
 bun "<installedPath>/scripts/configure.ts" --data-dir "<PLUGIN_DATA path>" --provider openrouter
 ```
 
-Use `--provider typesafe` with `JEV_API_KEY` for direct TypeSafe access; OpenRouter uses `OPENROUTER_API_KEY`. `codex plugin add --json` prints `installedPath`. The setup command saves credentials under `PLUGIN_DATA`, which persists across plugin updates. To update, run `codex plugin marketplace upgrade jev-review` and reinstall with `codex plugin add jev-review@jev-review`. Start a new Codex task to load the updated tools.
+Use `--provider typesafe` with `JEV_API_KEY` for direct TypeSafe access; OpenRouter uses `OPENROUTER_API_KEY`. `codex plugin add --json` prints `installedPath`. The setup command saves the key as plaintext in `PLUGIN_DATA/credentials.json` with owner-only permissions where supported; the directory persists across plugin updates. To update, run `codex plugin marketplace upgrade jev-review` and reinstall with `codex plugin add jev-review@jev-review`. Start a new Codex task to load the updated tools.
 
 To install manually or develop the fork, clone, install dependencies, and build with Bun:
 
