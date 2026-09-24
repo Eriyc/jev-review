@@ -1,0 +1,20 @@
+{
+  "name": "jev-review",
+  "interface": {
+    "displayName": "Jev Review"
+  },
+  "plugins": [
+    {
+      "name": "jev-review",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

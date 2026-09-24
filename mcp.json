@@ -4,7 +4,7 @@
     "jev-review": {
       "type": "stdio",
       "command": "bun",
-      "args": ["./dist/server.js"],
+      "args": ["${PLUGIN_ROOT}/dist/server.js"],
       "cwd": "./"
     }
   }

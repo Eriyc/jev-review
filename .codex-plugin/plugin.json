@@ -1,6 +1,6 @@
 {
   "name": "jev-review",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "An iterative, local-first software-quality score loop for AI coding agents, powered by Jev.",
   "author": {
     "name": "Jev Review contributors"
@@ -25,8 +25,8 @@
       "Code review"
     ],
     "defaultPrompt": [
-      "Implement this change, validate it, then use jev_review to score the focused diff. Inspect weak metrics, fix concrete issues, and rescore justified changes with previousEvaluation.",
-      "Use jev_signal to answer one specific yes/no question about this file. Supply the file, clear meanings for yes and no, and context needed for a defensible judgment."
+      "Validate this change, then score its focused diff with jev_review. Diagnose weak metrics and rescore justified fixes.",
+      "Use jev_signal for one yes/no question about this file. Supply the file, answer meanings, and relevant context."
     ]
   }
 }
