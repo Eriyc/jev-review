@@ -4,7 +4,7 @@ import type { JevQuestions } from "../evaluation/questions.js";
 export const JEV_API_ENDPOINT = "https://api.typesafe.ai/v1/systemone";
 export const JEV_MODEL = "jev-latest";
 
-type FetchImplementation = typeof fetch;
+type FetchImplementation = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 type SleepImplementation = (milliseconds: number) => Promise<void>;
 
 export type JevClientOptions = {

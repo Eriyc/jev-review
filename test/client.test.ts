@@ -14,7 +14,7 @@ describe("Jev client", () => {
     let observedUrl = "";
     let observedAuthorization = "";
     let observedBody: Record<string, unknown> = {};
-    const fakeFetch: typeof fetch = async (input, init) => {
+    const fakeFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       observedUrl = String(input);
       observedAuthorization = new Headers(init?.headers).get("authorization") ?? "";
       observedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -36,7 +36,7 @@ describe("Jev client", () => {
   it("retries documented transient failures with bounded backoff", async () => {
     let attempts = 0;
     const delays: number[] = [];
-    const fakeFetch: typeof fetch = async () => {
+    const fakeFetch = async (): Promise<Response> => {
       attempts += 1;
       if (attempts === 1) return new Response("overloaded", { status: 529 });
       return new Response(JSON.stringify(validResponse), { status: 200 });
@@ -60,7 +60,7 @@ describe("Jev client", () => {
   });
 
   it("explains Jev's upstream token-limit response", async () => {
-    const fakeFetch: typeof fetch = async () =>
+    const fakeFetch = async (): Promise<Response> =>
       new Response(JSON.stringify({ detail: { error_type: "max_tokens_exceeded" } }), {
         status: 400,
         headers: { "content-type": "application/json" }

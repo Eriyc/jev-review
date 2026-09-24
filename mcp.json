@@ -3,7 +3,7 @@
   "mcpServers": {
     "jev-review": {
       "type": "stdio",
-      "command": "node",
+      "command": "bun",
       "args": ["./dist/server.js"],
       "cwd": "./"
     }
