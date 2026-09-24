@@ -5,7 +5,7 @@
 **Continuous software-quality review for AI coding agents, powered by [Jev](https://typesafe.ai/).**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933.svg)
+![Bun 1.4+](https://img.shields.io/badge/Bun-1.4%2B-000000.svg)
 ![MCP transport: stdio](https://img.shields.io/badge/MCP-stdio-7C3AED.svg)
 ![Backend: none](https://img.shields.io/badge/Hosted_backend-none-059669.svg)
 
@@ -35,8 +35,8 @@ https://github.com/user-attachments/assets/0ff9f873-0652-4826-af3d-6bb4f42c70b1
 | **Purpose** | Continuous, structured software-quality evaluation |
 | **Supported clients** | Claude Code, Codex, Cursor, OpenCode |
 | **Distribution** | This GitHub repository—no npm publication |
-| **Runtime** | Local Node.js process over MCP stdio |
-| **Remote access** | Direct requests to Jev using your API key |
+| **Runtime** | Local Bun process over MCP stdio |
+| **Remote access** | TypeSafe or OpenRouter Decisions API using your provider key |
 | **MCP tools** | One focused tool: `jev_review` |
 | **Code changes** | Always performed by the primary coding agent |
 
@@ -44,23 +44,31 @@ https://github.com/user-attachments/assets/0ff9f873-0652-4826-af3d-6bb4f42c70b1
 
 Requirements:
 
-- Node.js 20 or newer
-- A Jev API key from the [TypeSafe console](https://console.typesafe.ai/)
+- Bun 1.4 or newer
+- A Jev API key from the [TypeSafe console](https://console.typesafe.ai/) or an [OpenRouter API key](https://openrouter.ai/keys)
 - Claude Code, Codex, Cursor, or OpenCode
 
-Set your API key before starting the coding agent:
+Clone, install, and build with Bun:
 
 ```bash
-export JEV_API_KEY="your-key"
+git clone https://github.com/Eriyc/jev-review.git
+cd jev-review
+bun install --frozen-lockfile
+bun run build
 ```
 
-Install Jev Review directly from GitHub—no npm publication is required:
+Set a provider key before starting your coding agent. TypeSafe remains the default:
 
 ```bash
-npx plugins add NiazMorshed2007/jev-review
+export JEV_API_KEY="your-typesafe-key"
 ```
 
-Choose your coding client when prompted, restart it, and ask the agent to use `jev-review` while implementing a nontrivial change.
+For OpenRouter, set `JEV_PROVIDER=openrouter` and `OPENROUTER_API_KEY` instead. `JEV_MODEL` is optional: OpenRouter defaults to `~typesafe/jev-latest`, and you can pin `typesafe/jev-1.13`. Direct TypeSafe defaults to `jev-latest`.
+
+```text
+Direct:     Codex → local Bun MCP → TypeSafe
+OpenRouter: Codex → local Bun MCP → OpenRouter → Jev provider
+```
 
 ## How it works
 
@@ -82,59 +90,45 @@ There is deliberately no synthetic “82/100” overall score. Dimension changes
 
 ## Client setup
 
-| Client | Plugin installation | Manual MCP available |
-| --- | --- | --- |
-| Claude Code | `npx plugins add NiazMorshed2007/jev-review --target claude-code` | Yes |
-| Codex | `npx plugins add NiazMorshed2007/jev-review --target codex` | Yes |
-| Cursor | `npx plugins add NiazMorshed2007/jev-review --target cursor` | Yes |
-| OpenCode | Manual configuration below | Yes |
-
-Every client starts the same bundled `dist/server.js` process locally over stdio.
-
-### Claude Code
-
-```bash
-npx plugins add NiazMorshed2007/jev-review --target claude-code
-```
-
-Restart Claude Code and run `/mcp` to confirm that `jev-review` is connected.
-
-To load a local clone while developing:
-
-```bash
-claude --plugin-dir /absolute/path/to/jev-review
-```
-
-Manual MCP-only setup:
-
-```bash
-claude mcp add --scope user jev-review -- node /absolute/path/to/jev-review/dist/server.js
-```
+All clients launch the committed `dist/server.js` bundle with Bun over stdio. Use an absolute path to your local clone. Keep API keys in your environment or a local, uncommitted client configuration.
 
 ### Codex
 
-```bash
-npx plugins add NiazMorshed2007/jev-review --target codex
-```
-
-Restart Codex and run `/mcp` to verify the connection.
-
-Manual setup in `~/.codex/config.toml`:
+Direct TypeSafe, using an inherited environment variable in `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.jev-review]
-command = "node"
+command = "bun"
 args = ["/absolute/path/to/jev-review/dist/server.js"]
 env_vars = ["JEV_API_KEY"]
 ```
 
-### Cursor
+OpenRouter, using an inherited key and explicit provider selection:
 
-```bash
-npx plugins add NiazMorshed2007/jev-review --target cursor
+```toml
+[mcp_servers.jev-review]
+command = "bun"
+args = ["/absolute/path/to/jev-review/dist/server.js"]
+env_vars = ["OPENROUTER_API_KEY"]
+
+[mcp_servers.jev-review.env]
+JEV_PROVIDER = "openrouter"
+JEV_MODEL = "~typesafe/jev-latest"
 ```
 
-Restart Cursor and check **Settings → MCP**. The bundled skill is named `jev-review`; invoke it with `/jev-review` or leave it on **Agent Decides**.
+Set `JEV_MODEL = "typesafe/jev-1.13"` to pin the current Jev version. If Codex does not pass through user variables, set `OPENROUTER_API_KEY` in the local `[mcp_servers.jev-review.env]` table instead; do not commit that configuration. Restart Codex after editing the MCP configuration.
+
+### Claude Code
+
+For direct TypeSafe:
+
+```bash
+claude mcp add --scope user jev-review -- bun /absolute/path/to/jev-review/dist/server.js
+```
+
+For OpenRouter, export `JEV_PROVIDER=openrouter` and `OPENROUTER_API_KEY` into Claude Code's environment before starting it. The same Bun command starts the server. The included `.mcp.json` uses Bun when loading this repository as a Claude plugin.
+
+### Cursor
 
 Manual setup in `~/.cursor/mcp.json`:
 
@@ -143,39 +137,22 @@ Manual setup in `~/.cursor/mcp.json`:
   "mcpServers": {
     "jev-review": {
       "type": "stdio",
-      "command": "node",
+      "command": "bun",
       "args": ["/absolute/path/to/jev-review/dist/server.js"],
       "env": {
-        "JEV_API_KEY": "${env:JEV_API_KEY}"
+        "JEV_PROVIDER": "openrouter",
+        "OPENROUTER_API_KEY": "${env:OPENROUTER_API_KEY}"
       }
     }
   }
 }
 ```
 
-If Cursor is launched from the macOS Dock, it may not inherit variables from your shell profile. Make the already-exported key available to GUI applications before starting Cursor:
-
-```bash
-launchctl setenv JEV_API_KEY "$JEV_API_KEY"
-```
-
-Verify without printing the key:
-
-```bash
-test -n "$(launchctl getenv JEV_API_KEY)" && echo "JEV_API_KEY is configured"
-```
+For direct TypeSafe, remove `JEV_PROVIDER` and pass `JEV_API_KEY` instead. If Cursor is launched from the macOS Dock, make exported variables available to GUI applications with `launchctl setenv` before starting Cursor.
 
 ### OpenCode
 
-OpenCode does not currently appear in the portable `plugins` installer targets. Point it at the same bundled server instead:
-
-```bash
-git clone https://github.com/NiazMorshed2007/jev-review.git
-cd jev-review
-opencode mcp add jev-review --global -- node "$PWD/dist/server.js"
-```
-
-For the full skill and MCP setup, add this to `~/.config/opencode/opencode.json`, replacing the absolute path:
+Point OpenCode at the same Bun bundle in `~/.config/opencode/opencode.json`:
 
 ```json
 {
@@ -185,9 +162,10 @@ For the full skill and MCP setup, add this to `~/.config/opencode/opencode.json`
     "servers": {
       "jev-review": {
         "type": "local",
-        "command": ["node", "/absolute/path/to/jev-review/dist/server.js"],
+        "command": ["bun", "/absolute/path/to/jev-review/dist/server.js"],
         "environment": {
-          "JEV_API_KEY": "{env:JEV_API_KEY}"
+          "JEV_PROVIDER": "openrouter",
+          "OPENROUTER_API_KEY": "{env:OPENROUTER_API_KEY}"
         }
       }
     }
@@ -195,8 +173,7 @@ For the full skill and MCP setup, add this to `~/.config/opencode/opencode.json`
 }
 ```
 
-Run `opencode mcp list` to verify the connection. OpenCode may display the tool as `jev-review_jev_review`; the underlying MCP tool is still `jev_review`.
-
+For direct TypeSafe, remove `JEV_PROVIDER` and pass `JEV_API_KEY` instead. Run `opencode mcp list` to verify the connection.
 ## MCP tool
 
 Jev Review intentionally starts with one tool: `jev_review`.
@@ -299,31 +276,30 @@ jev-review/
 ## Development
 
 ```bash
-git clone https://github.com/NiazMorshed2007/jev-review.git
+git clone https://github.com/Eriyc/jev-review.git
 cd jev-review
-npm install
-npm run validate
+bun install --frozen-lockfile
+bun run validate
 ```
 
 Useful commands:
 
 ```bash
-npm run check
-npm test
-npm run build
-npx plugins discover .
+bun run check
+bun test
+bun run build
 claude plugin validate . --strict
 ```
 
-`npm run build` creates the committed `dist/server.js` bundle. Unit and MCP protocol tests use local fakes and do not consume Jev API quota; a live Jev call requires `JEV_API_KEY`.
+`bun run build` creates the committed `dist/server.js` bundle. The validation script checks types, builds the bundle, then runs Bun tests. Unit and MCP protocol tests use local fakes and do not consume Jev API quota; a live Jev call requires the selected provider's key. Node.js and npm are not required for this workflow.
 
 ## Security and privacy
 
-The local MCP process reads `JEV_API_KEY` and uses it only in the TLS Authorization header sent directly to `https://api.typesafe.ai/v1/systemone`. Jev Review never stores or logs the key.
+The local MCP process reads `JEV_API_KEY` for direct TypeSafe or `OPENROUTER_API_KEY` for OpenRouter and uses it only in the TLS Authorization header sent to the selected provider. Jev Review never stores or logs the key.
 
 Only the `task`, `diff`, `files`, and `repositoryContext` explicitly supplied to `jev_review` are sent to Jev. `previousEvaluation` is compared locally and is not included in the current code context. No repository files are discovered or uploaded automatically.
 
-Review context does leave your machine for TypeSafe's Jev API. Do not supply secrets or unrelated proprietary content, and review [TypeSafe's privacy policy](https://typesafe.ai/privacy) for the remote service's handling terms. Jev Review complements rather than replaces dedicated security tooling.
+Review context leaves your machine for TypeSafe's Jev API or OpenRouter's Decisions API, depending on configuration. Do not supply secrets or unrelated proprietary content, and review the selected provider's privacy terms. Jev Review complements rather than replaces dedicated security tooling.
 
 ## License
 
