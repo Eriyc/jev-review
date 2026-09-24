@@ -51,13 +51,22 @@ Requirements:
 - A Jev API key from the [TypeSafe console](https://console.typesafe.ai/) or an [OpenRouter API key](https://openrouter.ai/keys)
 - Claude Code, Codex, Cursor, or OpenCode
 
-For Codex, the shortest install is the [Agent Plugins CLI](https://www.npmjs.com/package/plugins), run with Bun:
+For Codex, add this repository as a marketplace and install the plugin with Codex:
 
 ```bash
-bun x --bun plugins add Eriyc/jev-review --target codex
+codex plugin marketplace add Eriyc/jev-review
+codex plugin add jev-review@jev-review
 ```
 
-Choose the user scope when prompted. Bun and a provider key are still required. The installer uses the committed server bundle, so no build is needed. Set `JEV_PROVIDER=openrouter` and `OPENROUTER_API_KEY` in the MCP environment as shown under [Codex setup](#codex). The same command supports `--target claude-code` or `--target cursor`.
+Bun and a provider key are still required. The committed server bundle needs no build. The plugin's `mcp.json` uses `${PLUGIN_ROOT}` so Codex resolves the installed bundle automatically; do not add a separate `[mcp_servers.jev-review]` entry.
+
+Codex may not forward your shell's API key to a plugin MCP server. Invoke a Jev tool once to get the `PLUGIN_DATA` path in its missing-key message. From a shell where your provider key is set, configure the installed plugin without putting the key in a prompt or the repository:
+
+```bash
+bun "<installedPath>/scripts/configure.ts" --data-dir "<PLUGIN_DATA path>" --provider openrouter
+```
+
+Use `--provider typesafe` with `JEV_API_KEY` for direct TypeSafe access; OpenRouter uses `OPENROUTER_API_KEY`. `codex plugin add --json` prints `installedPath`. The setup command saves the key as plaintext in `PLUGIN_DATA/credentials.json` with owner-only permissions where supported; the directory persists across plugin updates. To update, run `codex plugin marketplace upgrade jev-review` and reinstall with `codex plugin add jev-review@jev-review`. Start a new Codex task to load the updated tools.
 
 To install manually or develop the fork, clone, install dependencies, and build with Bun:
 
@@ -103,7 +112,7 @@ There is deliberately no synthetic “82/100” overall score. Dimension changes
 
 All clients launch the committed `dist/server.js` bundle with Bun over stdio. Use an absolute path to your local clone. Keep API keys in your environment or a local, uncommitted client configuration.
 
-### Codex
+### Codex (manual MCP setup without the plugin marketplace)
 
 Direct TypeSafe, using an inherited environment variable in `~/.codex/config.toml`:
 

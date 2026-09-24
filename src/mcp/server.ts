@@ -18,7 +18,7 @@ export type SignalHandler = (input: SignalInput) => Promise<SignalOutput>;
 
 export function createMcpServer(review: ReviewHandler = reviewWithJev, signal: SignalHandler = signalWithJev): McpServer {
   const server = new McpServer(
-    { name: "jev-review", version: "0.2.0" },
+    { name: "jev-review", version: "0.2.1" },
     { instructions: SERVER_INSTRUCTIONS }
   );
 

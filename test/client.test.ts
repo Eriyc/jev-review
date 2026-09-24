@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "bun:test";
 
 import { JevApiError, JevClient, JEV_API_ENDPOINT, JEV_MODEL } from "../src/jev/client.js";
@@ -16,6 +19,26 @@ describe("Jev client", () => {
     assert.deepEqual(getJevProviderConfig({ JEV_API_KEY: " direct " }), {
       provider: "typesafe", apiKey: "direct"
     });
+  });
+
+  it("loads update-persistent credentials from PLUGIN_DATA when Codex omits provider variables", () => {
+    const directory = mkdtempSync(join(tmpdir(), "jev-credentials-"));
+    try {
+      writeFileSync(join(directory, "credentials.json"), JSON.stringify({ provider: "openrouter", apiKey: " stored ", model: "typesafe/jev-1.13" }));
+      assert.deepEqual(getJevProviderConfig({ PLUGIN_DATA: directory }), {
+        provider: "openrouter", apiKey: "stored", model: "typesafe/jev-1.13"
+      });
+      assert.deepEqual(getJevProviderConfig({ PLUGIN_DATA: directory, OPENROUTER_API_KEY: "override" }), {
+        provider: "openrouter", apiKey: "override", model: "typesafe/jev-1.13"
+      });
+      assert.throws(() => getJevProviderConfig({ PLUGIN_DATA: directory, JEV_PROVIDER: "typesafe" }), /JEV_API_KEY/);
+      writeFileSync(join(directory, "credentials.json"), "not JSON");
+      assert.deepEqual(getJevProviderConfig({ PLUGIN_DATA: directory, JEV_PROVIDER: "openrouter", OPENROUTER_API_KEY: "direct" }), {
+        provider: "openrouter", apiKey: "direct"
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it("selects OpenRouter's Decisions API, key, and default Jev alias", async () => {
