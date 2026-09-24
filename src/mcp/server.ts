@@ -8,16 +8,9 @@ import { evaluationSchema, type Evaluation } from "../evaluation/types.js";
 import { signalInputSchema, signalOutputSchema, signalWithJev, type SignalInput, type SignalOutput } from "../signal/signal.js";
 
 const SERVER_INSTRUCTIONS = [
-  "Jev Review is a repeated scalar feedback loop, not a narrative reviewer.",
-  "For every nontrivial coding task, call jev_review after the first coherent implementation to establish a baseline, then call it again after each meaningful improvement.",
-  "Jev supplies metric scores, confidence, and score movement; it does not provide a prose root-cause analysis.",
-  "The coding agent must inspect the requirements and code, diagnose why an important dimension is weak, make the smallest justified improvement, run relevant validation, and rescore.",
-  "On follow-up calls, send the current implementation and pass the prior structured response unchanged as previousEvaluation so improvements and regressions are visible.",
-  "A single baseline call is not completion: continue while important weak metrics remain and another evidence-based improvement is available.",
-  "If a targeted score does not improve, reconsider the diagnosis rather than making random cosmetic changes.",
-  "Do not repeat identical calls, review formatting-only changes, or game scores through scope expansion, speculative architecture, meaningless tests, unnecessary comments, or mechanical file splitting.",
-  "Correctness, user requirements, and normal project validation always outrank score improvement.",
-  "For a one-off yes/no judgment about a supplied file, call jev_signal. Treat its probability as a signal, and provide relevant rules and neighboring context when needed."
+  "Use jev_review after a coherent implementation: send the task and focused current diff, then inspect weak metrics and code yourself. Jev gives scores and rubric hints, not root causes.",
+  "Fix only concrete issues, validate, and rescore meaningful changes with the prior structured response unchanged as previousEvaluation. Stop when no justified fix remains; requirements and checks outrank scores.",
+  "Use jev_signal for a one-off yes/no file judgment. Supply the file and relevant context; treat its probability as a signal, not an automatic verdict. Never send secrets or unrelated files."
 ].join(" ");
 
 export type ReviewHandler = (input: z.infer<typeof reviewInputSchema>) => Promise<Evaluation>;
@@ -34,7 +27,7 @@ export function createMcpServer(review: ReviewHandler = reviewWithJev, signal: S
     {
       title: "Jev software-quality review",
       description:
-        "Run a scalar software-quality feedback loop over a focused implementation. For nontrivial work, call once to establish a baseline, then inspect the code yourself, improve weak important dimensions, validate, and call again with the prior result in previousEvaluation. Jev returns scores, confidence, and deltas—not a prose explanation of root causes. Do not stop after the baseline when another justified improvement is available. Send the current task, diff, relevant files, and repository context; never send the whole repository by default.",
+        "Score a focused code change. Send the task, current diff, and only files or context needed to judge it. Inspect weak metrics yourself; after a justified fix and validation, rescore with the prior structured result as previousEvaluation. Jev returns scores and rubric hints, not a prose diagnosis.",
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -64,7 +57,7 @@ export function createMcpServer(review: ReviewHandler = reviewWithJev, signal: S
     "jev_signal",
     {
       title: "Jev file judgment signal",
-      description: "Make one specific yes/no judgment about a supplied file. Returns Jev's probability of yes when the supplied file and context are sufficient; otherwise returns null and an evidence probability. Send the complete file when practical and relevant rules or neighboring context when needed. The server does not read repository files itself.",
+      description: "Judge a specific yes/no question about a supplied file. Send the full file when useful, plus relevant rules or neighboring context. Returns a yes probability, or null when the evidence probability says context is insufficient. The server does not read files itself.",
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
       inputSchema: signalInputSchema,
       outputSchema: signalOutputSchema

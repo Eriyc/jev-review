@@ -16,7 +16,7 @@
   "interface": {
     "displayName": "Jev Review",
     "shortDescription": "Evaluate code quality with Jev",
-    "longDescription": "Use Jev scores as a repeated feedback loop: implement, score, diagnose weak dimensions, improve, validate, and rescore with the user's local Jev API key.",
+    "longDescription": "Score code changes and get one-off file judgment signals with Jev. The agent diagnoses issues and makes the fixes.",
     "developerName": "Jev Review contributors",
     "category": "Developer Tools",
     "capabilities": [
@@ -25,8 +25,8 @@
       "Code review"
     ],
     "defaultPrompt": [
-      "Implement this change using Jev Review as an iterative score loop: establish a baseline, diagnose weak important dimensions, improve the code, validate it, and rescore until no further justified improvement remains.",
-      "Evaluate this implementation with Jev Review, inspect the code yourself to explain weak scores, make focused improvements, and compare a follow-up evaluation against the baseline."
+      "Implement this change, validate it, then use jev_review to score the focused diff. Inspect weak metrics, fix concrete issues, and rescore justified changes with previousEvaluation.",
+      "Use jev_signal to answer one specific yes/no question about this file. Supply the file, clear meanings for yes and no, and context needed for a defensible judgment."
     ]
   }
 }
