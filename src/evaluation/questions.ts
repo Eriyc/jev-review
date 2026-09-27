@@ -1,25 +1,7 @@
 import { metricDefinitions } from "./metrics.js";
+import type { JevQuestions } from "../jev/questions.js";
 
-export type JevNoulQuestion = {
-  type: "noul";
-  instructions: string;
-  criteria: { true: string; false: string };
-};
-
-export type JevScoreQuestion = {
-  type: "score";
-  instructions: string;
-  criteria: string[];
-};
-
-export type JevChoiceQuestion = {
-  type: "choice";
-  instructions: string;
-  criteria: Record<string, string>;
-};
-
-export type JevQuestion = JevNoulQuestion | JevScoreQuestion | JevChoiceQuestion;
-export type JevQuestions = Record<string, JevQuestion>;
+export type { JevChoiceQuestion, JevNoulQuestion, JevQuestion, JevQuestions, JevScoreQuestion } from "../jev/questions.js";
 
 export const SCORE_LEVELS = [
   "1 — Serious, fundamental problems; unsafe or substantially unfit.",

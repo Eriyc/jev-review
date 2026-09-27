@@ -1,5 +1,5 @@
-import { jevResponseSchema, type JevResponse } from "./schema.js";
-import type { JevQuestions } from "../evaluation/questions.js";
+import { jevResponseSchema, parseJevState, type JevResponse, type JevState } from "./schema.js";
+import type { JevQuestions } from "./questions.js";
 import { providerEndpoint, providerKeyName, providerModel, type JevProviderConfig } from "./provider.js";
 
 export { JEV_API_ENDPOINT, JEV_MODEL } from "./provider.js";
@@ -44,7 +44,14 @@ export class JevClient {
     this.#maxRetries = options.maxRetries ?? 2;
   }
 
-  async evaluate(state: unknown, questions: JevQuestions): Promise<JevResponse> {
+  async evaluate(state: JevState, questions: JevQuestions): Promise<JevResponse> {
+    let boundedState: JevState;
+    try {
+      boundedState = parseJevState(state);
+    } catch (error) {
+      throw new JevApiError(error instanceof Error ? error.message : "Jev evaluation state is invalid.");
+    }
+
     for (let attempt = 0; attempt <= this.#maxRetries; attempt += 1) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), this.#timeoutMilliseconds);
@@ -56,7 +63,7 @@ export class JevClient {
             Authorization: `Bearer ${this.#apiKey}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ state, model: providerModel(this.#config), questions }),
+          body: JSON.stringify({ state: boundedState, model: providerModel(this.#config), questions }),
           signal: controller.signal
         });
 
