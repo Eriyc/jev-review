@@ -13,6 +13,7 @@
     "jev"
   ],
   "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Jev Review",
     "shortDescription": "Evaluate code quality with Jev",

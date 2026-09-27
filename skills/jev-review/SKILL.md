@@ -21,7 +21,7 @@ Do not repeat identical calls, review formatting-only changes, or change code me
 
 Keep review scope comparable across calls so score deltas are meaningful. Send the current diff, not an obsolete one; add tests, callers, or contracts needed to judge it. Do not send the whole repository by default. If Jev reports a token limit, remove unrelated content or split the review into coherent slices without hiding relevant evidence. `previousEvaluation` is compared locally.
 
-The supplied context goes to the configured Jev provider. Never send secrets, environment files, generated or vendored code, or unrelated repository content.
+The supplied context goes to OpenRouter's Jev Decisions API. Never send secrets, environment files, generated or vendored code, or unrelated repository content.
 
 ## One-off file signal
 

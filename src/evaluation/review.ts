@@ -19,7 +19,7 @@ export async function reviewWithJev(
   const input = reviewInputSchema.parse(rawInput);
   const client = dependencies.client ?? new JevClient(
     dependencies.providerConfig ?? (dependencies.apiKey
-      ? { provider: "typesafe", apiKey: dependencies.apiKey }
+      ? { apiKey: dependencies.apiKey }
       : getJevProviderConfig())
   );
   const response = await client.evaluate(toJevState(input), buildJevQuestions());

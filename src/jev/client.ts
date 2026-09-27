@@ -1,13 +1,13 @@
 import { jevResponseSchema, parseJevState, type JevResponse, type JevState } from "./schema.js";
 import type { JevQuestions } from "./questions.js";
-import { providerEndpoint, providerKeyName, providerModel, type JevProviderConfig } from "./provider.js";
+import { OPENROUTER_API_ENDPOINT, providerModel, type JevProviderConfig } from "./provider.js";
 
-export { JEV_API_ENDPOINT, JEV_MODEL } from "./provider.js";
+export { OPENROUTER_API_ENDPOINT, OPENROUTER_MODEL } from "./provider.js";
 
 type FetchImplementation = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 type SleepImplementation = (milliseconds: number) => Promise<void>;
 
-export type JevClientOptions = Partial<Pick<JevProviderConfig, "provider">> & Omit<JevProviderConfig, "provider"> & {
+export type JevClientOptions = JevProviderConfig & {
   fetchImplementation?: FetchImplementation;
   sleep?: SleepImplementation;
   timeoutMilliseconds?: number;
@@ -34,8 +34,8 @@ export class JevClient {
 
   constructor(options: JevClientOptions) {
     const apiKey = options.apiKey.trim();
-    this.#config = { provider: options.provider ?? "typesafe", apiKey, ...(options.model ? { model: options.model } : {}) };
-    if (!apiKey) throw new JevApiError(`${providerKeyName(this.#config)} is not set. Export it before starting your coding agent.`);
+    this.#config = { apiKey, ...(options.model ? { model: options.model } : {}) };
+    if (!apiKey) throw new JevApiError("OPENROUTER_API_KEY is not set in the MCP process environment.");
 
     this.#apiKey = apiKey;
     this.#fetch = options.fetchImplementation ?? fetch;
@@ -57,7 +57,7 @@ export class JevClient {
       const timeout = setTimeout(() => controller.abort(), this.#timeoutMilliseconds);
 
       try {
-        const response = await this.#fetch(providerEndpoint(this.#config), {
+        const response = await this.#fetch(OPENROUTER_API_ENDPOINT, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${this.#apiKey}`,
@@ -72,11 +72,11 @@ export class JevClient {
           try {
             rawResponse = await response.json();
           } catch {
-            throw new JevApiError(`${providerName(this.#config)} returned malformed JSON.`);
+            throw new JevApiError("OpenRouter returned malformed JSON.");
           }
           const parsed = jevResponseSchema.safeParse(rawResponse);
           if (!parsed.success) {
-            throw new JevApiError(`${providerName(this.#config)} returned a response that did not match Jev's documented schema.`);
+            throw new JevApiError("OpenRouter returned a response that did not match Jev's documented schema.");
           }
           return parsed.data;
         }
@@ -86,13 +86,13 @@ export class JevClient {
           continue;
         }
 
-        throw await apiStatusError(response, this.#config);
+        throw await apiStatusError(response);
       } catch (error) {
         if (error instanceof JevApiError) throw error;
         if (isAbortError(error)) {
-          throw new JevApiError(`${providerName(this.#config)} did not respond within ${this.#timeoutMilliseconds}ms.`);
+          throw new JevApiError(`OpenRouter did not respond within ${this.#timeoutMilliseconds}ms.`);
         }
-        throw new JevApiError(`Could not reach ${providerName(this.#config)}. Check network access and try again.`);
+        throw new JevApiError("Could not reach OpenRouter. Check network access and try again.");
       } finally {
         clearTimeout(timeout);
       }
@@ -106,14 +106,10 @@ function isRetryable(status: number): boolean {
   return status === 429 || status === 529 || status >= 500;
 }
 
-function providerName(config: JevProviderConfig): string {
-  return config.provider === "openrouter" ? "OpenRouter" : "Jev";
-}
-
-async function apiStatusError(response: Response, config: JevProviderConfig): Promise<JevApiError> {
+async function apiStatusError(response: Response): Promise<JevApiError> {
   const status = response.status;
   const errorType = await readErrorType(response);
-  const name = providerName(config);
+  const name = "OpenRouter";
 
   if ((status === 400 || status === 413 || status === 422) &&
       (errorType === "max_tokens_exceeded" || errorType === "context_length_exceeded" || status === 413)) {
@@ -123,7 +119,7 @@ async function apiStatusError(response: Response, config: JevProviderConfig): Pr
     );
   }
   if (status === 401) {
-    return new JevApiError(`${name} rejected ${providerKeyName(config)}. Check that the key is current and available to the MCP process.`, status);
+    return new JevApiError(`${name} rejected OPENROUTER_API_KEY. Check that the key is current and available to the MCP process.`, status);
   }
   if (status === 422) {
     return new JevApiError(`${name} rejected the supplied evaluation context or questions.`, status);

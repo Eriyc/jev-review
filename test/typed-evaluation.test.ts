@@ -74,10 +74,9 @@ describe("typed Jev evaluation", () => {
     assert.deepEqual(result, nativeResponse);
   });
 
-  it("keeps TypeSafe and OpenRouter provider selection in the existing client", async () => {
+  it("uses the OpenRouter client for typed evaluation", async () => {
     let requestBody: Record<string, unknown> | undefined;
     const client = new JevClient({
-      provider: "openrouter",
       apiKey: "test-key",
       model: "typesafe/jev-latest",
       fetchImplementation: async (_input, init) => {

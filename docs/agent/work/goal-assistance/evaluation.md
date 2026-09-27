@@ -50,8 +50,8 @@ significance or generalization from this pilot.
 Worker checks: owning modules use deterministic fixtures and fake providers.
 Integration owner: run `bun run validate` once on the integrated candidate, covering
 old tools plus mixed typed evaluation, hook packaging and state isolation.
-Work-context owner: run `bun scripts/check-work-context.ts` and bounded document
-reads. Windows host acceptance owner: verify installed plugin discovery/trust,
+Work-context owner: run `bun scripts/check-work-context.ts` and bounded
+`ledger_document` MCP reads. Windows host acceptance owner: verify installed plugin discovery/trust,
 hook invocation, a clarification round and subsequent continuation, timeout
 fallback, and off/observe behavior. Do not infer host success from MCP unit tests.
 

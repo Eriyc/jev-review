@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "bun:test";
 
@@ -23,24 +22,9 @@ describe("portable Agent Plugins package", () => {
     assert.equal(existsSync(join(root, "dist", "server.js")), true);
     assert.equal(marketplace.plugins[0].source.path, "./");
     assert.equal(marketplace.plugins[0].name, plugin.name);
-  });
-
-  it("writes a provider key to PLUGIN_DATA without printing it", () => {
-    const directory = mkdtempSync(join(tmpdir(), "jev-setup-"));
-    try {
-      const child = Bun.spawnSync({
-        cmd: [process.execPath, join(root, "scripts", "configure.ts"), "--data-dir", directory, "--provider", "openrouter"],
-        env: { ...process.env, OPENROUTER_API_KEY: "private-test-key" },
-        stdout: "pipe",
-        stderr: "pipe"
-      });
-      assert.equal(child.exitCode, 0, new TextDecoder().decode(child.stderr));
-      assert.doesNotMatch(new TextDecoder().decode(child.stdout), /private-test-key/);
-      assert.deepEqual(JSON.parse(readFileSync(join(directory, "credentials.json"), "utf8")), {
-        provider: "openrouter", apiKey: "private-test-key"
-      });
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
+    const codexMcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
+    const codexPlugin = JSON.parse(readFileSync(join(root, ".codex-plugin", "plugin.json"), "utf8"));
+    assert.equal(codexPlugin.mcpServers, "./.mcp.json");
+    assert.deepEqual(codexMcp.mcpServers["jev-review"].env_vars, ["OPENROUTER_API_KEY", "JEV_MODEL"]);
   });
 });

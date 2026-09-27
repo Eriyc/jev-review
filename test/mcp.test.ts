@@ -14,7 +14,7 @@ describe("MCP server", () => {
       command: process.execPath,
       args: ["dist/server.js"],
       cwd: process.cwd(),
-      env: { ...process.env, JEV_PROVIDER: "openrouter", OPENROUTER_API_KEY: "" }
+      env: { ...process.env, OPENROUTER_API_KEY: "" }
     });
     const client = new Client({ name: "bun-stdio-test", version: "1.0.0" });
     await client.connect(transport);
